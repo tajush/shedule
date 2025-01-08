@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Post Scheduler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff; /* Light blue background */
+            color: #002147; /* Navy text color */
+        }
+
+        h1, h2 {
+            color: #004080; /* Deep blue headings */
+            text-align: center;
+        }
+
+        textarea, input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #004080; /* Deep blue border */
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        textarea:focus, input:focus, button:focus {
+            outline: none;
+            border-color: #0074d9; /* Bright blue border on focus */
+            box-shadow: 0 0 5px #0074d9;
+        }
+
+        button {
+            background-color: #0074d9; /* Bright blue button */
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #005bb5; /* Darker blue on hover */
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #e6f2ff; /* Light blue list item background */
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #004080; /* Deep blue border */
+        }
+
+        li span {
+            font-weight: bold;
+            color: #004080; /* Highlighted deep blue text */
+        }
+    </style>
+</head>
+<body>
+    <h1>Schedule Facebook Post</h1>
+
+    <!-- Post Content -->
+    <textarea id="post-content" placeholder="Enter your post content" rows="5"></textarea>
+    <br>
+
+    <!-- Schedule Time -->
+    <input type="datetime-local" id="schedule-time">
+    <br>
+
+    <!-- Schedule Button -->
+    <button id="schedule-post-btn">Schedule Post</button>
+
+    <h2>Scheduled Posts</h2>
+    <ul id="scheduled-posts"></ul>
+
+    <script>
+        // Replace with your actual Page ID and Access Token
+        const PAGE_ID = '564229933433033'; // Your Facebook Page ID
+        const PAGE_ACCESS_TOKEN = 'EAASaoIV4cB4BO0bUNez1qCFDEijd1fLUwTmQWUOLp2I1UfTpcnQSfEWwlUyuK4AzVtoL0ABDopLo3dytJtIekkZAFNEeoOWehsgIInVAfsLVC1mtb6JnSWbDBHtycLDydyJWP2ZAUfswHknkH0ATfAzAGiZCqVeUjNX2vJIZBSrpCqWbsZAilJ4iJg29MK2W7'; // Your Access Token
+
+        // Schedule Post Button Handler
+        document.getElementById('schedule-post-btn').addEventListener('click', () => {
+            const content = document.getElementById('post-content').value.trim();
+            const scheduleTime = document.getElementById('schedule-time').value.trim();
+
+            if (!content || !scheduleTime) {
+                alert('Please provide content and a valid scheduled time.');
+                return;
+            }
+
+            const scheduledUnixTime = Math.floor(new Date(scheduleTime).getTime() / 1000);
+            if (isNaN(scheduledUnixTime) || scheduledUnixTime < Math.floor(Date.now() / 1000)) {
+                alert('Invalid scheduled time. Please select a future date and time.');
+                return;
+            }
+
+            postToFacebook(content, scheduledUnixTime);
+        });
+
+        // Function to Post to Facebook
+        async function postToFacebook(content, scheduledUnixTime) {
+            try {
+                const response = await fetch(`https://graph.facebook.com/${PAGE_ID}/feed`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: content,
+                        access_token: PAGE_ACCESS_TOKEN,
+                        published: false, // Set to false for scheduling
+                        scheduled_publish_time: scheduledUnixTime,
+                    }),
+                });
+
+                const data = await response.json();
+                console.log('API Response:', data); // Log the full response for debugging
+
+                if (response.ok && data.id) {
+                    alert('Post scheduled successfully!');
+                    addScheduledPost(content, scheduledUnixTime);
+                } else {
+                    throw new Error(data.error?.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`Failed to schedule post: ${error.message}`);
+            }
+        }
+
+        // Add Scheduled Post to List
+        function addScheduledPost(content, scheduledUnixTime) {
+            const scheduledPosts = JSON.parse(localStorage.getItem('scheduledPosts')) || [];
+            scheduledPosts.push({ content, scheduledUnixTime });
+            localStorage.setItem('scheduledPosts', JSON.stringify(scheduledPosts));
+            displayScheduledPosts();
+        }
+
+        // Display Scheduled Posts
+        function displayScheduledPosts() {
+            const scheduledPosts = JSON.parse(localStorage.getItem('scheduledPosts')) || [];
+            const postList = document.getElementById('scheduled-posts');
+            postList.innerHTML = '';
+
+            scheduledPosts.forEach((post) => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<span>Post:</span> ${post.content} <br> 
+                <span>Scheduled for:</span> ${new Date(post.scheduledUnixTime * 1000).toLocaleString()}`;
+                postList.appendChild(listItem);
+            });
+        }
+
+        // Load Scheduled Posts on Page Load
+        document.addEventListener('DOMContentLoaded', displayScheduledPosts);
+    </script>
+</body>
+</html>
